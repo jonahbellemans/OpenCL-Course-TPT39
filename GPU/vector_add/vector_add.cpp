@@ -166,15 +166,65 @@ int main()
 
 
 //--------------------------------------------------------------------
-const unsigned N = 500000;
-float *input_a=(float *) malloc(sizeof(float)*N);
-float *input_b=(float *) malloc(sizeof(float)*N);
-float *output=(float *) malloc(sizeof(float)*N);
+const unsigned N = 5000000;
+
+int status;
+int errcode;
+
 float *ref_output=(float *) malloc(sizeof(float)*N);
+
 cl_mem input_a_buf; // num_devices elements
 cl_mem input_b_buf; // num_devices elements
 cl_mem output_buf; // num_devices elements
-int status;
+
+
+clGetPlatformIDs(1, &platform, NULL);
+     clGetPlatformInfo(platform, CL_PLATFORM_NAME, STRING_BUFFER_LEN, char_buffer, NULL);
+     printf("%-40s = %s\n", "CL_PLATFORM_NAME", char_buffer);
+     clGetPlatformInfo(platform, CL_PLATFORM_VENDOR, STRING_BUFFER_LEN, char_buffer, NULL);
+     printf("%-40s = %s\n", "CL_PLATFORM_VENDOR ", char_buffer);
+     clGetPlatformInfo(platform, CL_PLATFORM_VERSION, STRING_BUFFER_LEN, char_buffer, NULL);
+     printf("%-40s = %s\n\n", "CL_PLATFORM_VERSION ", char_buffer);
+
+     context_properties[1] = (cl_context_properties)platform;
+     clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
+     context = clCreateContext(context_properties, 1, &device, NULL, NULL, NULL);
+
+     queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &errcode);
+     checkError(errcode, "Failed to create command queue");
+
+
+ cl_event write_event[2];
+        cl_event kernel_event,finish_event;
+
+
+    // Input buffers.
+    input_a_buf = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR,
+       N* sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for input A");
+
+    input_b_buf = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR,
+        N* sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for input B");
+
+    // Output buffer.
+    output_buf = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR,
+        N* sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for output");
+
+    // Map to host memory
+        float* input_a = (float *)clEnqueueMapBuffer(queue, input_a_buf, CL_TRUE,
+        CL_MAP_WRITE,0, N* sizeof(float), 0, NULL, &write_event[0], &errcode);
+    checkError(errcode, "Failed to map input A");
+
+    float* input_b = (float *)clEnqueueMapBuffer(queue, input_b_buf, CL_TRUE,
+        CL_MAP_WRITE, 0,N* sizeof(float), 0, NULL, &write_event[1], &errcode);
+    checkError(errcode, "Failed to map input B");
+
+        // Map to host memory
+    float* output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
+        CL_MAP_READ, 0,N* sizeof(float),  0, NULL, NULL, &errcode);
+    checkError(errcode, "Failed to map output");
 
 	timespec start,end;
 	long diff;
@@ -192,23 +242,6 @@ int status;
 	diff = end.tv_nsec - start.tv_nsec;
   	printf ("CPU took %lu nano-seconds to run.\n", diff );
 
-     clGetPlatformIDs(1, &platform, NULL);
-     clGetPlatformInfo(platform, CL_PLATFORM_NAME, STRING_BUFFER_LEN, char_buffer, NULL);
-     printf("%-40s = %s\n", "CL_PLATFORM_NAME", char_buffer);
-     clGetPlatformInfo(platform, CL_PLATFORM_VENDOR, STRING_BUFFER_LEN, char_buffer, NULL);
-     printf("%-40s = %s\n", "CL_PLATFORM_VENDOR ", char_buffer);
-     clGetPlatformInfo(platform, CL_PLATFORM_VERSION, STRING_BUFFER_LEN, char_buffer, NULL);
-     printf("%-40s = %s\n\n", "CL_PLATFORM_VERSION ", char_buffer);
-
-     context_properties[1] = (cl_context_properties)platform;
-     clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
-     context = clCreateContext(context_properties, 1, &device, NULL, NULL, NULL);
-
-     int err;
-     queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
-     checkError(err, "Failed to create command queue");
-
-
      unsigned char **opencl_program=read_file("vector_add.cl");
      program = clCreateProgramWithSource(context, 1, (const char **)opencl_program, NULL, NULL);
      if (program == NULL)
@@ -219,35 +252,6 @@ int status;
      int success=clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 	 if(success!=CL_SUCCESS) print_clbuild_errors(program,device);
      kernel = clCreateKernel(program, "vector_add", NULL);
-
-    // Input buffers.
-    input_a_buf = clCreateBuffer(context, CL_MEM_READ_ONLY,
-       N* sizeof(float), NULL, &status);
-    checkError(status, "Failed to create buffer for input A");
-
-    input_b_buf = clCreateBuffer(context, CL_MEM_READ_ONLY,
-        N* sizeof(float), NULL, &status);
-    checkError(status, "Failed to create buffer for input B");
-
-    // Output buffer.
-    output_buf = clCreateBuffer(context, CL_MEM_WRITE_ONLY,
-        N* sizeof(float), NULL, &status);
-    checkError(status, "Failed to create buffer for output");
-
-
-
-    // Transfer inputs to each device. Each of the host buffers supplied to
-    // clEnqueueWriteBuffer here is already aligned to ensure that DMA is used
-    // for the host-to-device transfer.
-    cl_event write_event[2];
-	cl_event kernel_event,finish_event;
-    status = clEnqueueWriteBuffer(queue, input_a_buf, CL_FALSE,
-        0, N* sizeof(float), input_a, 0, NULL, &write_event[0]);
-    checkError(status, "Failed to transfer input A");
-
-    status = clEnqueueWriteBuffer(queue, input_b_buf, CL_FALSE,
-        0, N* sizeof(float), input_b, 0, NULL, &write_event[1]);
-    checkError(status, "Failed to transfer input B");
 
     // Set kernel arguments.
     unsigned argi = 0;
