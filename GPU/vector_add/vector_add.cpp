@@ -56,10 +56,90 @@ void callback(const char *buffer, size_t length, size_t final, void *user_data)
 }
 
 
-void checkError(int status, const char *msg) {
-	if(status!=CL_SUCCESS)	
-		printf("%s\n",msg);
+// Thanks to https://stackoverflow.com/questions/24326432/convenient-way-to-show-opencl-error-codes
+const char *getErrorString(cl_int error)
+{
+switch(error){
+    // run-time and JIT compiler errors
+    case 0: return "CL_SUCCESS";
+    case -1: return "CL_DEVICE_NOT_FOUND";
+    case -2: return "CL_DEVICE_NOT_AVAILABLE";
+    case -3: return "CL_COMPILER_NOT_AVAILABLE";
+    case -4: return "CL_MEM_OBJECT_ALLOCATION_FAILURE";
+    case -5: return "CL_OUT_OF_RESOURCES";
+    case -6: return "CL_OUT_OF_HOST_MEMORY";
+    case -7: return "CL_PROFILING_INFO_NOT_AVAILABLE";
+    case -8: return "CL_MEM_COPY_OVERLAP";
+    case -9: return "CL_IMAGE_FORMAT_MISMATCH";
+    case -10: return "CL_IMAGE_FORMAT_NOT_SUPPORTED";
+    case -11: return "CL_BUILD_PROGRAM_FAILURE";
+    case -12: return "CL_MAP_FAILURE";
+    case -13: return "CL_MISALIGNED_SUB_BUFFER_OFFSET";
+    case -14: return "CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST";
+    case -15: return "CL_COMPILE_PROGRAM_FAILURE";
+    case -16: return "CL_LINKER_NOT_AVAILABLE";
+    case -17: return "CL_LINK_PROGRAM_FAILURE";
+    case -18: return "CL_DEVICE_PARTITION_FAILED";
+    case -19: return "CL_KERNEL_ARG_INFO_NOT_AVAILABLE";
+
+    // compile-time errors
+    case -30: return "CL_INVALID_VALUE";
+    case -31: return "CL_INVALID_DEVICE_TYPE";
+    case -32: return "CL_INVALID_PLATFORM";
+    case -33: return "CL_INVALID_DEVICE";
+    case -34: return "CL_INVALID_CONTEXT";
+    case -35: return "CL_INVALID_QUEUE_PROPERTIES";
+    case -36: return "CL_INVALID_COMMAND_QUEUE";
+    case -37: return "CL_INVALID_HOST_PTR";
+    case -38: return "CL_INVALID_MEM_OBJECT";
+    case -39: return "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR";
+    case -40: return "CL_INVALID_IMAGE_SIZE";
+    case -41: return "CL_INVALID_SAMPLER";
+    case -42: return "CL_INVALID_BINARY";
+    case -43: return "CL_INVALID_BUILD_OPTIONS";
+    case -44: return "CL_INVALID_PROGRAM";
+    case -45: return "CL_INVALID_PROGRAM_EXECUTABLE";
+    case -46: return "CL_INVALID_KERNEL_NAME";
+    case -47: return "CL_INVALID_KERNEL_DEFINITION";
+    case -48: return "CL_INVALID_KERNEL";
+    case -49: return "CL_INVALID_ARG_INDEX";
+    case -50: return "CL_INVALID_ARG_VALUE";
+    case -51: return "CL_INVALID_ARG_SIZE";
+    case -52: return "CL_INVALID_KERNEL_ARGS";
+    case -53: return "CL_INVALID_WORK_DIMENSION";
+    case -54: return "CL_INVALID_WORK_GROUP_SIZE";
+    case -55: return "CL_INVALID_WORK_ITEM_SIZE";
+    case -56: return "CL_INVALID_GLOBAL_OFFSET";
+    case -57: return "CL_INVALID_EVENT_WAIT_LIST";
+    case -58: return "CL_INVALID_EVENT";
+    case -59: return "CL_INVALID_OPERATION";
+    case -60: return "CL_INVALID_GL_OBJECT";
+    case -61: return "CL_INVALID_BUFFER_SIZE";
+    case -62: return "CL_INVALID_MIP_LEVEL";
+    case -63: return "CL_INVALID_GLOBAL_WORK_SIZE";
+    case -64: return "CL_INVALID_PROPERTY";
+    case -65: return "CL_INVALID_IMAGE_DESCRIPTOR";
+    case -66: return "CL_INVALID_COMPILER_OPTIONS";
+    case -67: return "CL_INVALID_LINKER_OPTIONS";
+    case -68: return "CL_INVALID_DEVICE_PARTITION_COUNT";
+
+    // extension errors
+    case -1000: return "CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR";
+    case -1001: return "CL_PLATFORM_NOT_FOUND_KHR";
+    case -1002: return "CL_INVALID_D3D10_DEVICE_KHR";
+    case -1003: return "CL_INVALID_D3D10_RESOURCE_KHR";
+    case -1004: return "CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR";
+    case -1005: return "CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR";
+    default: return "Unknown OpenCL error";
+    }
 }
+
+
+void checkError(int status, const char *msg) {
+    if(status!=CL_SUCCESS)
+        printf("%s: %s\n",msg,getErrorString(status));
+}
+
 
 // Randomly generate a floating-point number between -10 and 10.
 float rand_float() {
@@ -123,18 +203,10 @@ int status;
      context_properties[1] = (cl_context_properties)platform;
      clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
      context = clCreateContext(context_properties, 1, &device, NULL, NULL, NULL);
-     queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, NULL);
 
      int err;
-     if (err == CL_INVALID_VALUE) {
-        printf("Create Command Queue failed: invalid parameter");
-     } else if (err == CL_INVALID_QUEUE_PROPERTIES) {
-        printf("Create Command Queue failed: parameter can't be set on this hardware");
-     } else if (err == CL_SUCCESS) {
-        printf ("Create Command Queue succes!");
-     } else {
-        printf ("Create Command Queue failed for unknown reasons...");
-     }
+     queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+     checkError(err, "Failed to create command queue");
 
 
      unsigned char **opencl_program=read_file("vector_add.cl");
@@ -173,32 +245,9 @@ int status;
         0, N* sizeof(float), input_a, 0, NULL, &write_event[0]);
     checkError(status, "Failed to transfer input A");
 
-    //Define timing variables
-    cl_ulong startgpu, endgpu, diffgpu;
-
-    // Time the first buffer write
-    status = clGetEventProfilingInfo(write_event[0], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
-    checkError(status, "Could not get profiling info: start of first buffer write");
-
-    status = clGetEventProfilingInfo(write_event[0], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
-    checkError(status, "Could not get profiling info: end of first buffer write");
-
-    diffgpu = endgpu - startgpu;
-    printf ("Buffer 1 written in %llu nano-seconds.\n", diffgpu );
-
-
     status = clEnqueueWriteBuffer(queue, input_b_buf, CL_FALSE,
         0, N* sizeof(float), input_b, 0, NULL, &write_event[1]);
     checkError(status, "Failed to transfer input B");
-
-
-    // Time the second buffer write
-    clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
-    clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
-    diffgpu = endgpu - startgpu;
-    printf ("Buffer 2 written in %llu nano-seconds.\n", diffgpu );
-
-
 
     // Set kernel arguments.
     unsigned argi = 0;
@@ -217,22 +266,9 @@ int status;
         &global_work_size, NULL, 2, write_event, &kernel_event);
     checkError(status, "Failed to launch kernel");
 
-
-    // Time the GPU calculation of the vector addition
-    clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
-    clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
-    diffgpu = endgpu - startgpu;
-    printf ("Vector sum calculated in %llu nano-seconds.\n", diffgpu );
-
     // Read the result. This the final operation.
     status = clEnqueueReadBuffer(queue, output_buf, CL_TRUE,
         0, N* sizeof(float), output, 1, &kernel_event, &finish_event);
-
-    // Time the copying of the end result
-    clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
-    clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
-    diffgpu = endgpu - startgpu;
-    printf ("Result copied in %llu nano-seconds.\n", diffgpu );
 
     // Verify results.
     bool pass = true;
@@ -243,17 +279,50 @@ int status;
             j, output[j], ref_output[j]);
         pass = false;
       }
-}
+    }
+
+    //Define timing variables
+    cl_ulong startgpu, endgpu, diffgpu;
+
+    // Time the first buffer write
+    status = clGetEventProfilingInfo(write_event[0], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+    checkError(status, "Could not get profiling info");
+
+    status = clGetEventProfilingInfo(write_event[0], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+    checkError(status, "Could not get profiling info");
+
+    diffgpu = endgpu - startgpu;
+    printf ("Buffer 1 written in %llu nano-seconds.\n", diffgpu );
+
+    // Time the second buffer write
+    clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+    clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+    diffgpu = endgpu - startgpu;
+    printf ("Buffer 2 written in %llu nano-seconds.\n", diffgpu );
+
+    // Time the GPU calculation of the vector addition
+    clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+    clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+    diffgpu = endgpu - startgpu;
+    printf ("Vector sum calculated in %llu nano-seconds.\n", diffgpu );
+
+    // Time the copying of the end result
+    clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+    clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+    diffgpu = endgpu - startgpu;
+    printf ("Result copied in %llu nano-seconds.\n", diffgpu );
+
+
     // Release local events.
     clReleaseEvent(write_event[0]);
     clReleaseEvent(write_event[1]);
-clReleaseKernel(kernel);
-clReleaseCommandQueue(queue);
-clReleaseMemObject(input_a_buf);
-clReleaseMemObject(input_b_buf);
-clReleaseMemObject(output_buf);
-clReleaseProgram(program);
-clReleaseContext(context);
+    clReleaseKernel(kernel);
+    clReleaseCommandQueue(queue);
+    clReleaseMemObject(input_a_buf);
+    clReleaseMemObject(input_b_buf);
+    clReleaseMemObject(output_buf);
+    clReleaseProgram(program);
+    clReleaseContext(context);
 
 
 //--------------------------------------------------------------------
