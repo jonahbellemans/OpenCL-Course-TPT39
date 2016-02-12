@@ -1,4 +1,4 @@
 __kernel void hello()
 {
- printf("Hello, World!\n");
+ printf("Hello, I am core %u!\n", get_global_id(0));
 };

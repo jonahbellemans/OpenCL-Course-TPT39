@@ -58,6 +58,7 @@ void callback(const char *buffer, size_t length, size_t final, void *user_data)
 
 int main()
 {
+     const unsigned N = 50;
      char char_buffer[STRING_BUFFER_LEN];
      cl_platform_id platform;
      cl_device_id device;
@@ -96,7 +97,8 @@ int main()
      int success=clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 	 if(success!=CL_SUCCESS) print_clbuild_errors(program,device);
      kernel = clCreateKernel(program, "hello", NULL);
-     clEnqueueNDRangeKernel(queue, kernel, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, NULL, 500000, NULL, NULL, NULL);
+     const size_t global_work_size = N;
+     clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_work_size, NULL, 0, NULL, NULL);
 
      clFinish(queue);
      clReleaseKernel(kernel);
