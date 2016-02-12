@@ -5,11 +5,9 @@
 #include <time.h>
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
+#include <unistd.h>
 #define STRING_BUFFER_LEN 1024
 using namespace std;
-
-
-
 
 void print_clbuild_errors(cl_program program,cl_device_id device)
 	{
@@ -88,7 +86,7 @@ int main()
 
 
 //--------------------------------------------------------------------
-const unsigned N = 50000000;
+const unsigned N = 500000;
 float *input_a=(float *) malloc(sizeof(float)*N);
 float *input_b=(float *) malloc(sizeof(float)*N);
 float *output=(float *) malloc(sizeof(float)*N);
@@ -98,20 +96,22 @@ cl_mem input_b_buf; // num_devices elements
 cl_mem output_buf; // num_devices elements
 int status;
 
-	time_t start,end;
-	double diff;
-	time (&start);
+	timespec start,end;
+	long diff;
+        for(unsigned j = 0; j < N; ++j) {
+              input_a[j] = rand_float();
+              input_b[j] = rand_float();
+        }
+        usleep(1000000);
+        clock_gettime(CLOCK_MONOTONIC, &start);
 	for(unsigned j = 0; j < N; ++j) {
-	      input_a[j] = rand_float();
-	      input_b[j] = rand_float();
 	      ref_output[j] = input_a[j] + input_b[j];
 	      //printf("ref %f\n",ref_output[j]);
 	    }
-	time (&end);
-	diff = difftime (end,start);
-  	printf ("CPU took %.2lf seconds to run.\n", diff );
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	diff = end.tv_nsec - start.tv_nsec;
+  	printf ("CPU took %lu nano-seconds to run.\n", diff );
 
-    time (&start);
      clGetPlatformIDs(1, &platform, NULL);
      clGetPlatformInfo(platform, CL_PLATFORM_NAME, STRING_BUFFER_LEN, char_buffer, NULL);
      printf("%-40s = %s\n", "CL_PLATFORM_NAME", char_buffer);
@@ -123,7 +123,19 @@ int status;
      context_properties[1] = (cl_context_properties)platform;
      clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
      context = clCreateContext(context_properties, 1, &device, NULL, NULL, NULL);
-     queue = clCreateCommandQueue(context, device, 0, NULL);
+     queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, NULL);
+
+     int err;
+     if (err == CL_INVALID_VALUE) {
+        printf("Create Command Queue failed: invalid parameter");
+     } else if (err == CL_INVALID_QUEUE_PROPERTIES) {
+        printf("Create Command Queue failed: parameter can't be set on this hardware");
+     } else if (err == CL_SUCCESS) {
+        printf ("Create Command Queue succes!");
+     } else {
+        printf ("Create Command Queue failed for unknown reasons...");
+     }
+
 
      unsigned char **opencl_program=read_file("vector_add.cl");
      program = clCreateProgramWithSource(context, 1, (const char **)opencl_program, NULL, NULL);
@@ -131,11 +143,12 @@ int status;
 	{
          printf("Program creation failed\n");
          return 1;
-	}	
+	}
      int success=clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 	 if(success!=CL_SUCCESS) print_clbuild_errors(program,device);
      kernel = clCreateKernel(program, "vector_add", NULL);
- // Input buffers.
+
+    // Input buffers.
     input_a_buf = clCreateBuffer(context, CL_MEM_READ_ONLY,
        N* sizeof(float), NULL, &status);
     checkError(status, "Failed to create buffer for input A");
@@ -160,9 +173,32 @@ int status;
         0, N* sizeof(float), input_a, 0, NULL, &write_event[0]);
     checkError(status, "Failed to transfer input A");
 
+    //Define timing variables
+    cl_ulong startgpu, endgpu, diffgpu;
+
+    // Time the first buffer write
+    status = clGetEventProfilingInfo(write_event[0], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+    checkError(status, "Could not get profiling info: start of first buffer write");
+
+    status = clGetEventProfilingInfo(write_event[0], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+    checkError(status, "Could not get profiling info: end of first buffer write");
+
+    diffgpu = endgpu - startgpu;
+    printf ("Buffer 1 written in %llu nano-seconds.\n", diffgpu );
+
+
     status = clEnqueueWriteBuffer(queue, input_b_buf, CL_FALSE,
         0, N* sizeof(float), input_b, 0, NULL, &write_event[1]);
     checkError(status, "Failed to transfer input B");
+
+
+    // Time the second buffer write
+    clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+    clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+    diffgpu = endgpu - startgpu;
+    printf ("Buffer 2 written in %llu nano-seconds.\n", diffgpu );
+
+
 
     // Set kernel arguments.
     unsigned argi = 0;
@@ -180,17 +216,28 @@ int status;
     status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL,
         &global_work_size, NULL, 2, write_event, &kernel_event);
     checkError(status, "Failed to launch kernel");
+
+
+    // Time the GPU calculation of the vector addition
+    clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+    clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+    diffgpu = endgpu - startgpu;
+    printf ("Vector sum calculated in %llu nano-seconds.\n", diffgpu );
+
     // Read the result. This the final operation.
     status = clEnqueueReadBuffer(queue, output_buf, CL_TRUE,
         0, N* sizeof(float), output, 1, &kernel_event, &finish_event);
 
-   time (&end);
-   diff = difftime (end,start);
-   printf ("GPU took %.8lf seconds to run.\n", diff );
-// Verify results.
-bool pass = true;
+    // Time the copying of the end result
+    clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+    clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+    diffgpu = endgpu - startgpu;
+    printf ("Result copied in %llu nano-seconds.\n", diffgpu );
 
-for(unsigned j = 0; j < N && pass; ++j) {
+    // Verify results.
+    bool pass = true;
+
+    for(unsigned j = 0; j < N && pass; ++j) {
       if(fabsf(output[j] - ref_output[j]) > 1.0e-5f) {
         printf("Failed verification @ index %d\nOutput: %f\nReference: %f\n",
             j, output[j], ref_output[j]);
