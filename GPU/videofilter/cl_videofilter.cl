@@ -5,9 +5,12 @@ __kernel void apply_3x3_convolution(__global const float *input,
   int i = get_global_id(0);
   int j = get_global_id(1);
 
-  for (int k = 0; k < 3, ++k) {
-    for (int l = 0; l < 3, ++l) {
-      result[i * 360 + j] += input[(i + k) + j + l] * conv_kernel[k * 3 + l];
+  int cols = 640;
+  int rows = 360;
+
+  for (int k = 0; k < 3; ++k) {
+    for (int l = 0; l < 3; ++l) {
+      result[i * cols + j] += input[(i * cols + j) + (k * cols) + l] * conv_kernel[k * 3 + l];
     }
   }
 }
