@@ -251,15 +251,15 @@ int main(int, char**)
 
     // Define Sobel Convolutional Kernels
     const float dx_sobel3x3[9] = {
-      -2, 0, 2,
       -4, 0, 4,
-      -2, 0, 2
+      -8, 0, 8,
+      -4, 0, 4
     };
 
     const float dy_sobel3x3[9] = {
-      2, 4, 2,
+      4, 8, 4,
       0, 0, 0,
-      -2, -4, -2
+      -4, -8, -4
     };
 
     // Create necessary OpenCL Buffers
