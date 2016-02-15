@@ -219,7 +219,7 @@ int main(int, char**)
     checkError(status, "Failed to create command queue");
 
     // Create necessary OpenCL Events
-    cl_event gauss1, gauss2, gauss3, sobelx, sobely, map_event, unmap_event, finish_event;
+    cl_event gauss1, gauss2, gauss3, sobelx, sobely, map_event, unmap_event, mapoutput_event, unmapoutput_event, write_gauss_buf;
 
     // Define Guassian Convolutional Kernel
     const float gauss3x3[9] = {
@@ -243,9 +243,10 @@ int main(int, char**)
 
     // Create necessary OpenCL Buffers
     gauss_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, 3*3*sizeof(float), NULL, &status);
-    checkError(status, "Failed to create buffer for input");
+    checkError(status, "Failed to create buffer for Gauss");
 
-    clEnqueueWriteBuffer(queue, gauss_buf,  CL_FALSE, 0, 3*3*sizeof(float), gauss3x3, 0, NULL, NULL);
+    status = clEnqueueWriteBuffer(queue, gauss_buf,  CL_TRUE, 0, 3*3*sizeof(float), gauss3x3, 0, NULL, &write_gauss_buf);
+		checkError(status, "Failed to write buffer for Gauss");
 
     input_buf = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR, (2+ROWS)*(2+COLS)*sizeof(float), NULL, &status);
     checkError(status, "Failed to create buffer for input");
@@ -271,7 +272,8 @@ int main(int, char**)
     const size_t global_work_size[2] = {ROWS, COLS};
 
     while (true) {
-        Mat cameraFrame,displayframe;
+
+		Mat cameraFrame,displayframe;
 		count=count+1;
 		if(count > 299) break;
         camera >> cameraFrame;
@@ -284,7 +286,6 @@ int main(int, char**)
 
       // Add padding to input
       copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
-
 
 
       // Map input array
@@ -320,7 +321,10 @@ int main(int, char**)
             status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &unmap_event, &gauss1);
             checkError(status, "G1: Failed to launch kernel");
 
-/**
+
+						
+/*
+
             // Gauss Convolution 2
             // Set kernel arguments.
             argi = 0;
@@ -352,37 +356,39 @@ int main(int, char**)
 
             status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &gauss2, &last_kernel_event);
             checkError(status, "G3: Failed to launch kernel");
-
 */
+
       // Map output array
       float* output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
-          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &gauss1, &finish_event, &status);
+          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &gauss1, &mapoutput_event, &status);
       checkError(status, "Failed to map output");
 
       // Reassign output to the frame
       memcpy(grayframe.data, output, ROWS*COLS*sizeof(float));
 
+			// UnMap Output array
+			status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event, &unmapoutput_event);
+			checkError(status, "Failed to unmap output");
+
 			// Convert grayframe back to char
 			grayframe.convertTo(grayframe, CV_8UC1);
 
-		//Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT );
-		//Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT );
+		Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT );
+		Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT );
 
 
 
-    //addWeighted( edge_x, 0.5, edge_y, 0.5, 0, edge );
-    //threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
+    addWeighted( edge_x, 0.5, edge_y, 0.5, 0, edge );
+    threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
 
 
     time (&end);
 
-		//cvtColor(edge, edge_inv, CV_GRAY2BGR);
+		cvtColor(edge, edge_inv, CV_GRAY2BGR);
     // Clear the output image to black, so that the cartoon line drawings will be black (ie: not drawn).
-    		memset((char*)displayframe.data, 0, displayframe.step * displayframe.rows);
-		//	grayframe.copyTo(displayframe,edge);
-    //  cvtColor(displayframe, displayframe, CV_GRAY2BGR);
-
-    cvtColor(grayframe, displayframe, CV_GRAY2BGR);
+    memset((char*)displayframe.data, 0, displayframe.step * displayframe.rows);
+		grayframe.copyTo(displayframe,edge);
+    cvtColor(displayframe, displayframe, CV_GRAY2BGR);
     outputVideo << displayframe;
 	#ifdef SHOW
         imshow(windowName, grayframe);
