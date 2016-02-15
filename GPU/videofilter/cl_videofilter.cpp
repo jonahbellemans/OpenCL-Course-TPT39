@@ -235,9 +235,9 @@ int main(int, char**)
     // Define Guassian Convolutional Kernel
 
 		const float gauss3x3[9] = {
+      0.0625, 0.125, 0.0625,
       0.125, 0.25, 0.125,
-      0.25, 0.50, 0.25,
-      0.125, 0.25, 0.125
+      0.0625, 0.125, 0.0625
     };
 
 /*
@@ -251,15 +251,15 @@ int main(int, char**)
 
     // Define Sobel Convolutional Kernels
     const float dx_sobel3x3[9] = {
-      -1, 0, 1,
       -2, 0, 2,
-      -1, 0, 1
+      -4, 0, 4,
+      -2, 0, 2
     };
 
     const float dy_sobel3x3[9] = {
-      1, 2, 1,
+      2, 4, 2,
       0, 0, 0,
-      -1, -2, -1
+      -2, -4, -2
     };
 
     // Create necessary OpenCL Buffers
