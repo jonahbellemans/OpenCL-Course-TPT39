@@ -219,7 +219,18 @@ int main(int, char**)
     checkError(status, "Failed to create command queue");
 
     // Create necessary OpenCL Events
-    cl_event gauss1, gauss2, gauss3, sobelx, sobely, map_event, unmap_event, mapoutput_event, unmapoutput_event, write_gauss_buf;
+    cl_event gauss1, gauss2, gauss3,
+							sobelx, sobely,
+							map_event_g1, unmap_event_g1,
+							map_event_g2, unmap_event_g2,
+							map_event_g3, unmap_event_g3,
+							map_event_sobel, unmap_event_sobel,
+							mapoutput_event_g1, unmapoutput_event_g1,
+							mapoutput_event_g2, unmapoutput_event_g2,
+							mapoutput_event_g3, unmapoutput_event_g3,
+							mapoutput_event_sobelx, unmapoutput_event_sobelx,
+							mapoutput_event_sobely, unmapoutput_event_sobely,
+							write_gauss_buf, write_sobelx_buf, write_sobely_buf;
 
     // Define Guassian Convolutional Kernel
     const float gauss3x3[9] = {
@@ -245,8 +256,20 @@ int main(int, char**)
     gauss_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, 3*3*sizeof(float), NULL, &status);
     checkError(status, "Failed to create buffer for Gauss");
 
-    status = clEnqueueWriteBuffer(queue, gauss_buf,  CL_TRUE, 0, 3*3*sizeof(float), gauss3x3, 0, NULL, &write_gauss_buf);
+		status = clEnqueueWriteBuffer(queue, gauss_buf,  CL_TRUE, 0, 3*3*sizeof(float), gauss3x3, 0, NULL, &write_gauss_buf);
 		checkError(status, "Failed to write buffer for Gauss");
+
+		sobelx_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, 3*3*sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for SobelX");
+
+		status = clEnqueueWriteBuffer(queue, sobelx_buf,  CL_TRUE, 0, 3*3*sizeof(float), dx_sobel3x3, 0, NULL, &write_sobelx_buf);
+		checkError(status, "Failed to write buffer for SobelX");
+
+		sobely_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, 3*3*sizeof(float), NULL, &status);
+    checkError(status, "Failed to create buffer for SobelY");
+
+		status = clEnqueueWriteBuffer(queue, sobely_buf,  CL_TRUE, 0, 3*3*sizeof(float), dy_sobel3x3, 0, NULL, &write_sobely_buf);
+		checkError(status, "Failed to write buffer for SobelY");
 
     input_buf = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR, (2+ROWS)*(2+COLS)*sizeof(float), NULL, &status);
     checkError(status, "Failed to create buffer for input");
@@ -279,7 +302,7 @@ int main(int, char**)
         camera >> cameraFrame;
         Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
         Mat grayframe, paddedframe, edge_x,edge_y,edge,edge_inv;
-    	cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
+    		cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
 
 			// Convert grayframe to floats instead of chars
 			grayframe.convertTo(grayframe, CV_32FC1);
@@ -290,15 +313,15 @@ int main(int, char**)
 
       // Map input array
       float* input = (float *)clEnqueueMapBuffer(queue, input_buf, CL_TRUE,
-          CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 0, NULL, &map_event, &status);
-      checkError(status, "Failed to map input");
+          CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 0, NULL, &map_event_g1, &status);
+      checkError(status, "Failed to map input for G1");
 
       // Copy grayframe into memory
       memcpy(input, paddedframe.data, (2+ROWS)*(2+COLS)*sizeof(float));
 
       // UnMap input array
-      status = clEnqueueUnmapMemObject(queue,input_buf,input,1, &map_event, &unmap_event);
-			checkError(status, "Failed to unmap input");
+      status = clEnqueueUnmapMemObject(queue,input_buf,input,1, &map_event_g1, &unmap_event_g1);
+			checkError(status, "Failed to unmap input for G1");
 
       // Start timer
       time (&start);
@@ -318,11 +341,11 @@ int main(int, char**)
             status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &output_buf);
             checkError(status, "G1: Failed to set argument 3");
 
-            status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &unmap_event, &gauss1);
+            status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &unmap_event_g1, &gauss1);
             checkError(status, "G1: Failed to launch kernel");
 
 
-						
+
 /*
 
             // Gauss Convolution 2
@@ -360,33 +383,118 @@ int main(int, char**)
 
       // Map output array
       float* output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
-          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &gauss1, &mapoutput_event, &status);
-      checkError(status, "Failed to map output");
+          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &gauss1, &mapoutput_event_g1, &status);
+      checkError(status, "Failed to map output for G1");
 
       // Reassign output to the frame
       memcpy(grayframe.data, output, ROWS*COLS*sizeof(float));
 
 			// UnMap Output array
-			status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event, &unmapoutput_event);
-			checkError(status, "Failed to unmap output");
-
-			// Convert grayframe back to char
-			grayframe.convertTo(grayframe, CV_8UC1);
-
-		Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT );
-		Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT );
+			status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_g1, &unmapoutput_event_g1);
+			checkError(status, "Failed to unmap output for G1");
 
 
+			// Apply Sobel Edge Convolution
+			//Initialize edge, edge_x, edge_y
+			edge_x = grayframe.clone;
+			edge_y = grayframe.clone;
+			edge = grayframe.clone;
 
-    addWeighted( edge_x, 0.5, edge_y, 0.5, 0, edge );
-    threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
+			// Sobel X
+					// Add padding to input
+		      copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
+
+
+		      // Map input array
+		      input = (float *)clEnqueueMapBuffer(queue, input_buf, CL_TRUE,
+		          CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 1, &unmapoutput_event_g1, &map_event_sobel, &status);
+		      checkError(status, "Failed to map input for Sobel");
+
+		      // Copy grayframe into memory
+		      memcpy(input, paddedframe.data, (2+ROWS)*(2+COLS)*sizeof(float));
+
+		      // UnMap input array
+		      status = clEnqueueUnmapMemObject(queue,input_buf,input,1, &map_event_sobel, &unmap_event_sobel);
+					checkError(status, "Failed to unmap input for Sobel");
+
+					// Set kernel arguments.
+					argi = 0;
+
+					status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &input_buf);
+					checkError(status, "SX: Failed to set argument 1");
+
+					status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &sobelx_buf);
+					checkError(status, "SX: Failed to set argument 2");
+
+					status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &output_buf);
+					checkError(status, "SX: Failed to set argument 3");
+
+					status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &unmap_event_sobel, &sobelx);
+					checkError(status, "SX: Failed to launch kernel");
+
+					// Map output array
+		      output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
+		          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &sobelx, &mapoutput_event_sobelx, &status);
+		      checkError(status, "Failed to map output");
+
+		      // Reassign output to the frame
+		      memcpy(edge_x.data, output, ROWS*COLS*sizeof(float));
+
+					// UnMap Output array
+					status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_sobelx, &unmapoutput_event_sobelx);
+					checkError(status, "Failed to unmap output");
+
+
+		  	// Sobel Y
+					// Set kernel arguments.
+					argi = 0;
+
+					status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &input_buf);
+					checkError(status, "SY: Failed to set argument 1");
+
+					status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &sobely_buf);
+					checkError(status, "SY: Failed to set argument 2");
+
+					status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &output_buf);
+					checkError(status, "SY: Failed to set argument 3");
+
+					status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &unmapoutput_event_sobelx, &sobely);
+					checkError(status, "SY: Failed to launch kernel");
+
+					// Map output array
+		     output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
+		          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &sobely, &mapoutput_event_sobely, &status);
+		      checkError(status, "Failed to map output");
+
+		      // Reassign output to the frame
+		      memcpy(edge_y.data, output, ROWS*COLS*sizeof(float));
+
+					// UnMap Output array
+					status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_sobely, &unmapoutput_event_sobely);
+					checkError(status, "Failed to unmap output");
+
+
+
+					addWeighted( edge_x, 0.5, edge_y, 0.5, 0, edge );
+			    threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
+
+
+					// Convert grayframe back to char
+					grayframe.convertTo(grayframe, CV_8UC1);
+
+		//Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT );
+		//Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT );
+
+
+
+
 
 
     time (&end);
 
 		cvtColor(edge, edge_inv, CV_GRAY2BGR);
     // Clear the output image to black, so that the cartoon line drawings will be black (ie: not drawn).
-    memset((char*)displayframe.data, 0, displayframe.step * displayframe.rows);
+  	memset((char*)displayframe.data, 0, displayframe.step * displayframe.rows);
 		grayframe.copyTo(displayframe,edge);
     cvtColor(displayframe, displayframe, CV_GRAY2BGR);
     outputVideo << displayframe;
