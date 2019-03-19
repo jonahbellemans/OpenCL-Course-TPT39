@@ -63,7 +63,7 @@ int main()
      cl_device_id device;
      cl_context context;
      cl_context_properties context_properties[] =
-     { 
+     {
           CL_CONTEXT_PLATFORM, 0,
           CL_PRINTF_CALLBACK_ARM, (cl_context_properties)callback,
           CL_PRINTF_BUFFERSIZE_ARM, 0x1000,
@@ -92,11 +92,11 @@ int main()
 	{
          printf("Program creation failed\n");
          return 1;
-	}	
+	}
      int success=clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 	 if(success!=CL_SUCCESS) print_clbuild_errors(program,device);
      kernel = clCreateKernel(program, "hello", NULL);
-     clEnqueueTask(queue, kernel, 0, NULL, NULL);
+     clEnqueueNDRangeKernel(queue, kernel, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, NULL, 500000, NULL, NULL, NULL);
 
      clFinish(queue);
      clReleaseKernel(kernel);
