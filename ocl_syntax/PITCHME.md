@@ -49,6 +49,12 @@
 https://www.khronos.org/registry/OpenCL/sdk/1.2/
 ---
 <img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/oclflow.svg" height="400"/>
+---
+### OpenCL Memory Model
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/fig/opencl_mem.svg" height="400"/>
+---
+### OpenCL Work Items
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/fig/work_items.svg" height="400"/>
 +++?code=ocl_syntax/src/vector_add.cpp&lang=c&title=Vector Addition
 @[118](Creating Context)
 @[119](Creating Command Queue)
@@ -60,16 +66,22 @@ https://www.khronos.org/registry/OpenCL/sdk/1.2/
 @[137-138](Creating CL Buffers input (read))
 @[142-143](Creating CL Buffers output (write))
 +++?code=ocl_syntax/src/vector_add.cpp&lang=c&title= Copying Host Buffers to CL buffers
-@[153-154](input_a: Host Buffer, input_a_buf: CL Buffer)
-@[157-158](input_b: Host Buffer,input_b_buf: CL Buffer)
+@[153-155](input_a: Host Buffer, input_a_buf: CL Buffer)
+@[157-159](input_b: Host Buffer,input_b_buf: CL Buffer)
 +++?code=ocl_syntax/src/vector_add.cpp&lang=c&title= Setting Kernel Arguments
-@[164-170](Setting Kernel Arguments)
+@[164-173](Setting Kernel Arguments)
 +++?code=ocl_syntax/src/vector_add.cpp&lang=c&title= Launching Job
-@[174-175](clEnqueueNDRangeKernel)
+@[174-177](clEnqueueNDRangeKernel)
 +++?code=ocl_syntax/src/vector_add.cpp&lang=c&title= Reading back the result.
-@[178-179](output: Host Buffer,output_buf: CL Buffer)
+@[178-181](output: Host Buffer,output_buf: CL Buffer)
 +++?code=ocl_syntax/src/vector_add.cpp&lang=c&title= Reading back the result.
 @[206-208](Query for the maximum work group size)
+---
++++?code=ocl_syntax/src/snippets.cpp&lang=c&title=Snippets
+@[86-97](Create Buffer in the Host Accesible Memory)
+@[99-111](Map to host virtual address space)
+@[115-117](Wait for a Prticular Event)
+@[119-121](Profiling an Event)
 ---
 #### References
 https://www.khronos.org/assets/uploads/developers/library/2012-pan-pacific-road-show-June/OpenCL-Details-Taiwan_June-2012.pdf
