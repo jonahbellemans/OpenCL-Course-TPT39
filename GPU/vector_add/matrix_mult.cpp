@@ -166,7 +166,7 @@ int main()
 
 
 //--------------------------------------------------------------------
-const unsigned N = 500;
+const unsigned N = 1000;
 
 int status;
 int errcode;
