@@ -293,11 +293,11 @@ clGetPlatformIDs(1, &platform, NULL);
     for(unsigned i = 0; i < N*N && pass; ++i) {
       if(fabsf(output[i] - ref_output[i]) > 1.0e-5f) {
         printf("Failed verification @ index [%d]\nOutput: %f\nReference: %f\n",
-            i, output[j], ref_output[j]);
+            i, output[i], ref_output[i]);
         pass = false;
       }
     }
-	}
+	
 
     //Define timing variables
     cl_ulong startgpu, endgpu, diffgpu;
