@@ -8,6 +8,6 @@ __kernel void matrix_mult(__global const float *x,
 
     float res = 0;
     for (unsigned int k = 0; k < N; ++k) {
-        z[i * N + j] += x[j*N + k] + y[i + k*N];
+        z[i * N + j] += x[j*N + k] * y[i + k*N];
     }
 }
