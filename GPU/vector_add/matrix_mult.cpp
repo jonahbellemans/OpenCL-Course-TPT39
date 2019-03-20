@@ -330,7 +330,7 @@ clGetPlatformIDs(1, &platform, NULL);
 		checkError(status, "Could not get profiling info");
 
 		diffgpu = endgpu - startgpu;
-    printf ("Vector sum calculated in %llu nano-seconds.\n", diffgpu );
+    printf ("Matrix product calculated in %llu nano-seconds.\n", diffgpu );
 
     // Time the copying of the end result
     status = clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
