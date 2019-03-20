@@ -4,8 +4,8 @@ __kernel void vector_add(__global const float *x,
                         __global float *restrict z)
 {
     int id = get_global_id(0);
-    i = id[0];
-    j = id[1];
+    int i = id[0];
+    int j = id[1];
 
     float res = 0;
     for (unsigned int k = 0; k < N; ++k) {
