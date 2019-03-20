@@ -153,7 +153,7 @@ int main()
      cl_device_id device;
      cl_context context;
      cl_context_properties context_properties[] =
-     { 
+     {
           CL_CONTEXT_PLATFORM, 0,
           CL_PRINTF_CALLBACK_ARM, (cl_context_properties)callback,
           CL_PRINTF_BUFFERSIZE_ARM, 0x1000,
@@ -296,13 +296,13 @@ clGetPlatformIDs(1, &platform, NULL);
     checkError(status, "Could not get profiling info");
 
     diffgpu = endgpu - startgpu;
-    printf ("Buffer 1 written in %llu nano-seconds.\n", diffgpu );
+    printf ("Buffer 1 mapped in %llu nano-seconds.\n", diffgpu );
 
     // Time the second buffer write
     clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
     clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
     diffgpu = endgpu - startgpu;
-    printf ("Buffer 2 written in %llu nano-seconds.\n", diffgpu );
+    printf ("Buffer 2 mapped in %llu nano-seconds.\n", diffgpu );
 
     // Time the GPU calculation of the vector addition
     clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
