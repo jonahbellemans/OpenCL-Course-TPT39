@@ -280,7 +280,7 @@ clGetPlatformIDs(1, &platform, NULL);
 
     const size_t global_work_size[2] = {N, N};
     status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL,
-        &global_work_size, NULL, 2, write_event, &kernel_event);
+        global_work_size, NULL, 2, write_event, &kernel_event);
     checkError(status, "Failed to launch kernel");
 
     // Read the result. This the final operation.
