@@ -278,7 +278,7 @@ clGetPlatformIDs(1, &platform, NULL);
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &output_buf);
     checkError(status, "Failed to set argument 4");
 
-    const unsigned int [2] global_work_size = {N, N};
+    unsigned int[2] global_work_size = {N, N};
     status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL,
         &global_work_size, NULL, 2, write_event, &kernel_event);
     checkError(status, "Failed to launch kernel");
