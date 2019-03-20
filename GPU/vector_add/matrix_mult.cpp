@@ -242,7 +242,7 @@ clGetPlatformIDs(1, &platform, NULL);
 		for(unsigned j = 0; j < N; ++j) {
 			for(unsigned k = 0; k < N; ++k) {
 
-	    		ref_output[i*N + j] += input_a[j*N + k] + input_b[i*N + k];
+	    		ref_output[i*N + j] += input_a[j*N + k] + input_b[i + k*N];
 	    		//printf("ref %f\n",ref_output[j]);
 			}
 	 	}
