@@ -1,4 +1,4 @@
-__kernel void vector_add(__global const float *x,
+__kernel void matrix_mult(__global const float *x,
                         __global const float *y,
                         const int N,
                         __global float *restrict z)
