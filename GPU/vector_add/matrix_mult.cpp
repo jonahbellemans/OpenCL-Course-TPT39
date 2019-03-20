@@ -272,7 +272,7 @@ clGetPlatformIDs(1, &platform, NULL);
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &input_b_buf);
     checkError(status, "Failed to set argument 2");
 
-		status = clSetKernelArg(kernel, argi++, sizeof(unsigned int), N);
+		status = clSetKernelArg(kernel, argi++, sizeof(unsigned int), &N);
 		checkError(status, "Failed to set argument 3");
 
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &output_buf);
