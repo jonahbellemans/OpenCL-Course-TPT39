@@ -9,7 +9,7 @@ __kernel void vector_add(__global const float *x,
 
     float res = 0;
     for (unsigned int k = 0; k < N; ++k) {
-        res += x[i, k] * y[k][j];
+        res += x[j*N + k] + y[i*N + k];
     }
-    z[i][j] = res;
+    z[i * N + j] = res;
 }

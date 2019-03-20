@@ -228,11 +228,9 @@ clGetPlatformIDs(1, &platform, NULL);
 
 	timespec start,end;
 	long diff;
-			for(unsigned i = 0; i < N; ++i) {
-        for(unsigned j = 0; j < N; ++j) {
-              input_a[j][i] = rand_float();
-              input_b[j][i] = rand_float();
-        }
+			for(unsigned i = 0; i < N * N; ++i) {
+              input_a[i] = rand_float();
+              input_b[i] = rand_float();
 			}
 
 	// Sleep 1 second to ease analysis in Streamline
@@ -243,7 +241,8 @@ clGetPlatformIDs(1, &platform, NULL);
 	for(unsigned i = 0; i < N; ++i) {
 		for(unsigned j = 0; j < N; ++j) {
 			for(unsigned k = 0; k < N; ++k) {
-	    		ref_output[i][j] += input_a[i][k] + input_b[k][j];
+
+	    		ref_output[i*N + j] += input_a[j*N + k] + input_b[i*N + k];
 	    		//printf("ref %f\n",ref_output[j]);
 			}
 	 	}
@@ -291,11 +290,10 @@ clGetPlatformIDs(1, &platform, NULL);
     // Verify results.
     bool pass = true;
 
-for(unsigned j = 0; j < N && pass; ++j) {
-    for(unsigned i = 0; i < N && pass; ++i) {
-      if(fabsf(output[j][i] - ref_output[j][i]) > 1.0e-5f) {
-        printf("Failed verification @ index [%d, %d]\nOutput: %f\nReference: %f\n",
-            j, i, output[j], ref_output[j]);
+    for(unsigned i = 0; i < N*N && pass; ++i) {
+      if(fabsf(output[i] - ref_output[i]) > 1.0e-5f) {
+        printf("Failed verification @ index [%d]\nOutput: %f\nReference: %f\n",
+            i, output[j], ref_output[j]);
         pass = false;
       }
     }
@@ -315,21 +313,33 @@ for(unsigned j = 0; j < N && pass; ++j) {
     printf ("Buffer 1 mapped in %llu nano-seconds.\n", diffgpu );
 
     // Time the second buffer write
-    clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
-    clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
-    diffgpu = endgpu - startgpu;
+    status = clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+		checkError(status, "Could not get profiling info");
+
+		status = clGetEventProfilingInfo(write_event[1], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+		checkError(status, "Could not get profiling info");
+
+		diffgpu = endgpu - startgpu;
     printf ("Buffer 2 mapped in %llu nano-seconds.\n", diffgpu );
 
     // Time the GPU calculation of the vector addition
-    clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
-    clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
-    diffgpu = endgpu - startgpu;
+    status = clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+		checkError(status, "Could not get profiling info");
+
+		status = clGetEventProfilingInfo(kernel_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+		checkError(status, "Could not get profiling info");
+
+		diffgpu = endgpu - startgpu;
     printf ("Vector sum calculated in %llu nano-seconds.\n", diffgpu );
 
     // Time the copying of the end result
-    clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
-    clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
-    diffgpu = endgpu - startgpu;
+    status = clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &startgpu, NULL);
+		checkError(status, "Could not get profiling info");
+
+		status = clGetEventProfilingInfo(finish_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &endgpu, NULL);
+		checkError(status, "Could not get profiling info");
+
+		diffgpu = endgpu - startgpu;
     printf ("Result copied in %llu nano-seconds.\n", diffgpu );
 
 
