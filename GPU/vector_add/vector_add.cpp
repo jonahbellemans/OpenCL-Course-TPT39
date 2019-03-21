@@ -166,7 +166,7 @@ int main()
 
 
 //--------------------------------------------------------------------
-const unsigned N = 5000000;
+const unsigned N = 100000000;
 
 int status;
 int errcode;
@@ -239,8 +239,8 @@ clGetPlatformIDs(1, &platform, NULL);
 	      //printf("ref %f\n",ref_output[j]);
 	    }
 	clock_gettime(CLOCK_MONOTONIC, &end);
-	diff = end.tv_nsec - start.tv_nsec;
-  	printf ("CPU took %lu nano-seconds to run.\n", diff );
+	diff = end.tv_sec - start.tv_sec;
+  	printf ("CPU took %lu seconds to run.\n", diff );
 
      unsigned char **opencl_program=read_file("vector_add.cl");
      program = clCreateProgramWithSource(context, 1, (const char **)opencl_program, NULL, NULL);
