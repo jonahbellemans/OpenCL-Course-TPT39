@@ -1,17 +1,17 @@
 ### Accelerator Design with OpenCL
-##### (Athens Week 19-24 March, 2018) 
+##### (Athens Week 18-22 March, 2019) 
 ---
 ### FPGA Architecture: Overview
-<img src="http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/FPGAsArch.svg" height="400"/>
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/FPGAsArch.svg" height="400"/>
 ---
 ### FPGA Architecture: Basic Logic Element
-<img src="http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/BLE.svg" height="400"/>
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/BLE.svg" height="400"/>
 ---
 ### FPGA Architecture: Configurable Logic Block (CLB/LAB)
-<img src="http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/cluster.svg" height="400"/>
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/cluster.svg" height="400"/>
 ---
 ### FPGA Architecture: Routing
-<img src="http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/FPGAroutingArch.svg" height="400"/>
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/FPGAroutingArch.svg" height="400"/>
 ---
 ### FPGA Architecture: Hard Macros
 <img src="assets/stxv-floorplan.png" height="400"/>
@@ -26,7 +26,7 @@
 * Schematic
 ---
 ### FPGA : CAD FLOW
-<img src="http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/cad.svg" height="400"/>
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/cad.svg" height="400"/>
 ---
 ### FPGA: Applications
 * Prototyping, ASIC Emulation |
@@ -54,13 +54,13 @@
 * FPGAs on the same die as Chip Multi-Processors
 	- Altera/Intel Cyclone V, Arria V, Stratix 10
 	- Xilix Zynq, Zynq Ultrascale
-* OpenCL can be use to program both PCI-X cards and SOcFPGAs.
+* OpenCL can be use to program both PCI-X cards and SocFPGAs.
 ---
 ### SoCFPGA Architecture: Altera Cyclone V
-<img src="http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/cycloneV.svg" height="400"/>
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/cycloneV.svg" height="400"/>
 ---
 ### SoCFPGA Architecture: Xilinx Ultrascale
-<img src="http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/ultrascale.svg" height="400"/>
+<img src="http://perso.telecom-paristech.fr/~chaudhur/tpt39/ultrascale.svg" height="400"/>
 ---
 ### FPGA Architecture: example
 * PCI-X based card Stratix 10
@@ -85,13 +85,22 @@
 - Extensions: FIFO stream. |
 ---
 ### OpenCL for FPGAs: Streams
-+++?image=http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/fig/opencl_fpga_demo.svg&size=auto 40%
-+++?image=http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/fig/opencl_fpga_demo1.svg&size=auto 40%
-+++?image=http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/fig/opencl_fpga_demo2.svg&size=auto 40%
-+++?image=http://perso.telecom-paristech.fr/~chaudhur/images/tpt39/fig/opencl_fpga_demo3.svg&size=auto 40%
++++?image=http://perso.telecom-paristech.fr/~chaudhur/tpt39/fig/opencl_fpga_demo.svg&size=auto 40%
++++?image=http://perso.telecom-paristech.fr/~chaudhur/tpt39/fig/opencl_fpga_demo1.svg&size=auto 40%
++++?image=http://perso.telecom-paristech.fr/~chaudhur/tpt39/fig/opencl_fpga_demo2.svg&size=auto 40%
++++?image=http://perso.telecom-paristech.fr/~chaudhur/tpt39/fig/opencl_fpga_demo3.svg&size=auto 40%
 	
 ---
+## Differences with MALI OpenCL
+* Core and SIMD width are configurable.
+* Use of Streams.
+* No Cache .....
+	* the current platform doesn't use cache coherence 
+* But More Local Memory
 
+* MMU ? what could be the problem ?
+
+---  
 ### OpenCL for FPGAs: LAB WORK
 * setup
 	* git pull
