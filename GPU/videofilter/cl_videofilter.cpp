@@ -322,7 +322,6 @@ int main(int, char**)
       time (&start);
 
       // Apply Gauss Convolutions
-
             // Gauss Convolution 1
 
 
@@ -373,7 +372,6 @@ int main(int, char**)
 
 
             // Gauss Convolution 2
-
 						// Add padding to input
 			      copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
 
@@ -421,7 +419,6 @@ int main(int, char**)
 						checkError(status, "Failed to unmap output for G2");
 
             // Gauss Convolution 3
-
 						// Add padding to input
 			      copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
 
@@ -502,14 +499,14 @@ int main(int, char**)
 					// Map output array
 		      output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
 		          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &sobelx, &mapoutput_event_sobelx, &status);
-		      checkError(status, "Failed to map output");
+		      checkError(status, "SX: Failed to map output");
 
 		      // Reassign output to the frame
 		      memcpy(edge_x.data, output, ROWS*COLS*sizeof(float));
 
 					// UnMap Output array
 					status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_sobelx, &unmapoutput_event_sobelx);
-					checkError(status, "Failed to unmap output");
+					checkError(status, "SX: Failed to unmap output");
 
 
 		  	// Sobel Y
@@ -531,16 +528,14 @@ int main(int, char**)
 					// Map output array
 		     output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
 		          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &sobely, &mapoutput_event_sobely, &status);
-		      checkError(status, "Failed to map output");
+		      checkError(status, "SY: Failed to map output");
 
 		      // Reassign output to the frame
 		      memcpy(edge_y.data, output, ROWS*COLS*sizeof(float));
 
 					// UnMap Output array
 					status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_sobely, &unmapoutput_event_sobely);
-					checkError(status, "Failed to unmap output");
-
-
+					checkError(status, "SY: Failed to unmap output");
 
 					addWeighted( edge_x, 0.5, edge_y, 0.5, 0, edge );
 			    threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
@@ -551,13 +546,6 @@ int main(int, char**)
 					edge.convertTo(edge, CV_8UC1);
 					edge_x.convertTo(edge_x, CV_8UC1);
 					edge_y.convertTo(edge_y, CV_8UC1);
-
-		//Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT );
-		//Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT );
-
-
-
-
 
 
     time (&end);
