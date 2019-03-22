@@ -197,7 +197,7 @@ int main(int, char**)
 
 
     // Declaring necessary OpenCL buffer variables
-    cl_mem input_buf, temp1_buf, temp2_buf, output_buf, gauss_buf, sobelx_buf, sobely_buf;
+    cl_mem input_buf, output_buf, gauss_buf, sobelx_buf, sobely_buf;
 
     // OpenCL Configuration
     clGetPlatformIDs(1, &platform, NULL);
@@ -233,11 +233,21 @@ int main(int, char**)
 							write_gauss_buf, write_sobelx_buf, write_sobely_buf;
 
     // Define Guassian Convolutional Kernel
-    const float gauss3x3[9] = {
-      0.0625, 0.125, 0.0625,
+
+		const float gauss3x3[9] = {
       0.125, 0.25, 0.125,
-      0.0625, 0.125, 0.0625
+      0.25, 0.50, 0.25,
+      0.125, 0.25, 0.125
     };
+
+/*
+		float gauss3x3[9];
+
+		Mat gaussKern = getGaussianKernel(9, 0, CV_32F);
+		memcpy(gauss3x3, gaussKern.data, 9*sizeof(float));
+		for (int i = 0; i < 9; ++i) {
+			printf("Gauss coefficient: %f\n", gauss3x3[i]);
+		}*/
 
     // Define Sobel Convolutional Kernels
     const float dx_sobel3x3[9] = {
@@ -277,12 +287,6 @@ int main(int, char**)
     output_buf = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR, ROWS*COLS*sizeof(float), NULL, &status);
     checkError(status, "Failed to create buffer for output");
 
-    temp1_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, ROWS*COLS*sizeof(float), NULL, &status);
-    checkError(status, "Failed to create buffer for temp1");
-
-    temp2_buf = clCreateBuffer(context, CL_MEM_READ_WRITE, ROWS*COLS*sizeof(float), NULL, &status);
-    checkError(status, "Failed to create buffer for temp2");
-
     unsigned char **opencl_program=read_file("cl_videofilter.cl");
     program = clCreateProgramWithSource(context, 1, (const char **)opencl_program, NULL, NULL);
     if (program == NULL) {
@@ -303,25 +307,16 @@ int main(int, char**)
         Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
         Mat grayframe, paddedframe, edge_x,edge_y,edge,edge_inv;
     		cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
+				//Initialize edge, edge_x, edge_y
+				edge_x = grayframe.clone();
+				edge_y = grayframe.clone();
+				edge = grayframe.clone();
 
-			// Convert grayframe to floats instead of chars
+			// Convert grayframe, edge, edge_x and edge_y to floats instead of chars
 			grayframe.convertTo(grayframe, CV_32FC1);
-
-      // Add padding to input
-      copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
-
-
-      // Map input array
-      float* input = (float *)clEnqueueMapBuffer(queue, input_buf, CL_TRUE,
-          CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 0, NULL, &map_event_g1, &status);
-      checkError(status, "Failed to map input for G1");
-
-      // Copy grayframe into memory
-      memcpy(input, paddedframe.data, (2+ROWS)*(2+COLS)*sizeof(float));
-
-      // UnMap input array
-      status = clEnqueueUnmapMemObject(queue,input_buf,input,1, &map_event_g1, &unmap_event_g1);
-			checkError(status, "Failed to unmap input for G1");
+			edge.convertTo(edge, CV_32FC1);
+			edge_x.convertTo(edge_x, CV_32FC1);
+			edge_y.convertTo(edge_y, CV_32FC1);
 
       // Start timer
       time (&start);
@@ -329,6 +324,25 @@ int main(int, char**)
       // Apply Gauss Convolutions
 
             // Gauss Convolution 1
+
+
+						// Add padding to input
+						copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
+
+
+						// Map input array
+						float* input = (float *)clEnqueueMapBuffer(queue, input_buf, CL_TRUE,
+								CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 0, NULL, &map_event_g1, &status);
+						checkError(status, "Failed to map input for G1");
+
+						// Copy grayframe into memory
+						memcpy(input, paddedframe.data, (2+ROWS)*(2+COLS)*sizeof(float));
+
+						// UnMap input array
+						status = clEnqueueUnmapMemObject(queue,input_buf,input,1, &map_event_g1, &unmap_event_g1);
+						checkError(status, "Failed to unmap input for G1");
+
+
             // Set kernel arguments.
             unsigned argi = 0;
 
@@ -344,31 +358,90 @@ int main(int, char**)
             status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &unmap_event_g1, &gauss1);
             checkError(status, "G1: Failed to launch kernel");
 
+						// Map output array
+			      float* output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
+			          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &gauss1, &mapoutput_event_g1, &status);
+			      checkError(status, "Failed to map output for G1");
+
+			      // Reassign output to the frame
+			      memcpy(grayframe.data, output, ROWS*COLS*sizeof(float));
+
+						// UnMap Output array
+						status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_g1, &unmapoutput_event_g1);
+						checkError(status, "Failed to unmap output for G1");
 
 
-/*
 
             // Gauss Convolution 2
-            // Set kernel arguments.
+
+						// Add padding to input
+			      copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
+
+
+			      // Map input array
+			      input = (float *)clEnqueueMapBuffer(queue, input_buf, CL_TRUE,
+			          CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 1, &unmapoutput_event_g1, &map_event_g2, &status);
+			      checkError(status, "Failed to map input for G2");
+
+			      // Copy grayframe into memory
+			      memcpy(input, paddedframe.data, (2+ROWS)*(2+COLS)*sizeof(float));
+
+			      // UnMap input array
+			      status = clEnqueueUnmapMemObject(queue,input_buf,input,1, &map_event_g2, &unmap_event_g2);
+						checkError(status, "Failed to unmap input for G2");
+
+
+
+						// Set kernel arguments.
             argi = 0;
 
-            status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &temp1_buf);
+            status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &input_buf);
             checkError(status, "G2: Failed to set argument 1");
 
             status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &gauss_buf);
             checkError(status, "G2: Failed to set argument 2");
 
-            status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &temp2_buf);
+            status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &output_buf);
             checkError(status, "G2: Failed to set argument 3");
 
-            status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &gauss1, &gauss2);
+            status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &unmap_event_g2, &gauss2);
             checkError(status, "G2: Failed to launch kernel");
 
+
+						// Map output array
+			      output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
+			          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &gauss2, &mapoutput_event_g2, &status);
+			      checkError(status, "Failed to map output for G2");
+
+			      // Reassign output to the frame
+			      memcpy(grayframe.data, output, ROWS*COLS*sizeof(float));
+
+						// UnMap Output array
+						status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_g2, &unmapoutput_event_g2);
+						checkError(status, "Failed to unmap output for G2");
+
             // Gauss Convolution 3
-            // Set kernel arguments.
+
+						// Add padding to input
+			      copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
+
+
+			      // Map input array
+			      input = (float *)clEnqueueMapBuffer(queue, input_buf, CL_TRUE,
+			          CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 1, &unmapoutput_event_g2, &map_event_g3, &status);
+			      checkError(status, "Failed to map input for G3");
+
+			      // Copy grayframe into memory
+			      memcpy(input, paddedframe.data, (2+ROWS)*(2+COLS)*sizeof(float));
+
+			      // UnMap input array
+			      status = clEnqueueUnmapMemObject(queue,input_buf,input,1, &map_event_g3, &unmap_event_g3);
+						checkError(status, "Failed to unmap input for G3");
+
+						// Set kernel arguments.
             argi = 0;
 
-            status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &temp2_buf);
+            status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &input_buf);
             checkError(status, "G3: Failed to set argument 1");
 
             status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &gauss_buf);
@@ -377,29 +450,23 @@ int main(int, char**)
             status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &output_buf);
             checkError(status, "G3: Failed to set argument 3");
 
-            status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &gauss2, &last_kernel_event);
+            status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 1, &unmap_event_g3, &gauss3);
             checkError(status, "G3: Failed to launch kernel");
-*/
 
-      // Map output array
-      float* output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
-          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &gauss1, &mapoutput_event_g1, &status);
-      checkError(status, "Failed to map output for G1");
+						// Map output array
+			      output = (float *)clEnqueueMapBuffer(queue, output_buf, CL_TRUE,
+			          CL_MAP_READ, 0, ROWS*COLS*sizeof(float),  1, &gauss3, &mapoutput_event_g3, &status);
+			      checkError(status, "Failed to map output for G3");
 
-      // Reassign output to the frame
-      memcpy(grayframe.data, output, ROWS*COLS*sizeof(float));
+			      // Reassign output to the frame
+			      memcpy(grayframe.data, output, ROWS*COLS*sizeof(float));
 
-			// UnMap Output array
-			status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_g1, &unmapoutput_event_g1);
-			checkError(status, "Failed to unmap output for G1");
+						// UnMap Output array
+						status = clEnqueueUnmapMemObject(queue,output_buf,output,1, &mapoutput_event_g3, &unmapoutput_event_g3);
+						checkError(status, "Failed to unmap output for G3");
 
 
 			// Apply Sobel Edge Convolution
-			//Initialize edge, edge_x, edge_y
-			edge_x = grayframe.clone;
-			edge_y = grayframe.clone;
-			edge = grayframe.clone;
-
 			// Sobel X
 					// Add padding to input
 		      copyMakeBorder(grayframe, paddedframe, 0, 2, 0, 2, BORDER_CONSTANT, 0);
@@ -407,7 +474,7 @@ int main(int, char**)
 
 		      // Map input array
 		      input = (float *)clEnqueueMapBuffer(queue, input_buf, CL_TRUE,
-		          CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 1, &unmapoutput_event_g1, &map_event_sobel, &status);
+		          CL_MAP_WRITE,0, (2+ROWS)*(2+COLS)*sizeof(float), 1, &unmapoutput_event_g3, &map_event_sobel, &status);
 		      checkError(status, "Failed to map input for Sobel");
 
 		      // Copy grayframe into memory
@@ -479,8 +546,11 @@ int main(int, char**)
 			    threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
 
 
-					// Convert grayframe back to char
+					// Convert frames back to char
 					grayframe.convertTo(grayframe, CV_8UC1);
+					edge.convertTo(edge, CV_8UC1);
+					edge_x.convertTo(edge_x, CV_8UC1);
+					edge_y.convertTo(edge_y, CV_8UC1);
 
 		//Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT );
 		//Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT );
